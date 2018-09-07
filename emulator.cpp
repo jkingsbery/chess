@@ -38,8 +38,17 @@ int main()
 
     // clear the window with black color
     window.clear(sf::Color::Black);
+    
+    //draw game board grid
+    for(int i=0; i<64; i++) {
+      if((i%2==0 && (i/8)%2==0) || (i%2==1 && (i/8)%2==1)) {
+        sf::RectangleShape rect(sf::Vector2f(80,80));
+        rect.move(sf::Vector2f(80*(i%8), 80*(i/8)));
+        window.draw(rect);
+      }
+    }
 
-
+    //Draw pieces based on location
     window.draw(white_rook_a);
     window.draw(white_rook_b);
     window.draw(white_knight_a);
