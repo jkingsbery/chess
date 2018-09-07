@@ -1,30 +1,119 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <iostream>
+using namespace std;
+sf::Texture texture;
+
+enum Player{WHITE, BLACK};
+
+class GamePiece {
+public:
+  virtual sf::Sprite * getSprite() {
+    return new sf::Sprite(texture,sf::IntRect(80*getXLoc(),80*getYLoc(),80,80));
+  }
+
+protected:
+  Player color;
+  int xloc;
+  int yloc;
+  GamePiece(Player color) {
+    this->color=color;
+  }
+  int getXLoc() {
+    return color == WHITE ? xloc : xloc + 3;
+  }
+  int getYLoc() {
+    return yloc;
+  }
+};
+
+class King : public GamePiece {
+public:
+  King(Player color) : GamePiece(color) {
+    xloc = 1;
+    yloc = 1;
+  };
+  
+
+};
+
+class Queen : public GamePiece {
+public:
+  Queen(Player color) : GamePiece(color) {
+    xloc = 1;
+    yloc = 0;
+  };
+};
+
+class Pawn : public GamePiece {
+public:
+  Pawn(Player color) : GamePiece(color) {
+    xloc = 2;
+    yloc = 0;
+  };
+};
+
+class Rook : public GamePiece {
+public:
+  Rook(Player color) : GamePiece(color) {
+    xloc = 0;
+    yloc = 0;
+  };
+  
+};
+
+class Bishop : public GamePiece {
+public:
+  Bishop(Player color) : GamePiece(color) {
+    xloc = 2;
+    yloc = 1;
+  };
+
+};
+
+class Knight  : public GamePiece {
+public:
+  Knight(Player color) : GamePiece(color) {
+    xloc = 0;
+    yloc = 1;
+  };
+
+};
 
 int main()
 {
   sf::RenderWindow window(sf::VideoMode(1000, 800), "My window");
 
-  sf::Texture texture;
   texture.loadFromFile("assets/pieces.png");
 
-  sf::Sprite white_rook_a(texture,sf::IntRect(80*0,80*0,80,80));
-  sf::Sprite white_rook_b(texture,sf::IntRect(80*0,80*0,80,80));
-  sf::Sprite white_bishop_a(texture,sf::IntRect(80*2,80*1,80,80));
-  sf::Sprite white_bishop_b(texture,sf::IntRect(80*2,80*1,80,80));
-  sf::Sprite white_knight_a(texture,sf::IntRect(80*0,80*1,80,80));
-  sf::Sprite white_knight_b(texture,sf::IntRect(80*0,80*1,80,80));
-  sf::Sprite white_king(texture,sf::IntRect(80*1,80*0,80,80));
-  sf::Sprite white_queen(texture,sf::IntRect(80*1,80*1,80,80));
-  
-  white_rook_a.move(sf::Vector2f(80*0, 80*7));
-  white_rook_b.move(sf::Vector2f(80*7, 80*7));
-  white_knight_a.move(sf::Vector2f(80*1, 80*7));
-  white_knight_b.move(sf::Vector2f(80*6, 80*7));
-  white_bishop_a.move(sf::Vector2f(80*2, 80*7));
-  white_bishop_b.move(sf::Vector2f(80*5, 80*7));
-  white_king.move(sf::Vector2f(80*3, 80*7));
-  white_queen.move(sf::Vector2f(80*4, 80*7));
+  //setup initial board
+  GamePiece* board[8][8];
+  for(int x = 0; x<8; x++){
+    for(int y=0; y<8; y++){
+      board[x][y]=0;
+    }
+  }
+
+  board[0][7] = new Rook(WHITE);
+  board[1][7] = new Knight(WHITE);
+  board[2][7] = new Bishop(WHITE);
+  board[3][7] = new Queen(WHITE);
+  board[4][7] = new King(WHITE);
+  board[5][7] = new Bishop(WHITE);
+  board[6][7] = new Knight(WHITE);
+  board[7][7] = new Rook(WHITE);
+  board[0][0] = new Rook(BLACK);
+  board[1][0] = new Knight(BLACK);
+  board[2][0] = new Bishop(BLACK);
+  board[3][0] = new Queen(BLACK);
+  board[4][0] = new King(BLACK);
+  board[5][0] = new Bishop(BLACK);
+  board[6][0] = new Knight(BLACK);
+  board[7][0] = new Rook(BLACK);
+  for(int i=0; i<8; i++) {
+    board[i][6] = new Pawn(WHITE);
+    board[i][1] = new Pawn(BLACK);
+  }
 
   // run the program as long as the window is open
   while (window.isOpen()) {
@@ -40,26 +129,26 @@ int main()
     window.clear(sf::Color::Black);
     
     //draw game board grid
-    for(int i=0; i<64; i++) {
-      if((i%2==0 && (i/8)%2==0) || (i%2==1 && (i/8)%2==1)) {
-        sf::RectangleShape rect(sf::Vector2f(80,80));
-        rect.move(sf::Vector2f(80*(i%8), 80*(i/8)));
-        window.draw(rect);
+    for(int x=0; x<8; x++) {
+      for(int y=0; y<8; y++) {
+        if((x%2==0 && (y)%2==0) || (x%2==1 && (y)%2==1)) {
+          sf::RectangleShape rect(sf::Vector2f(80,80));
+          rect.move(sf::Vector2f(80*(x), 80*(y)));
+          window.draw(rect);
+        }
       }
     }
 
-    //Draw pieces based on location
-    window.draw(white_rook_a);
-    window.draw(white_rook_b);
-    window.draw(white_knight_a);
-    window.draw(white_knight_b);
-    window.draw(white_bishop_a);
-    window.draw(white_bishop_b);
-    window.draw(white_king);
-    window.draw(white_queen);
-    
-    // draw everything here...
-    // window.draw(...);
+    //draw pieces
+    for(int x=0; x<8; x++) {
+      for(int y=0; y<8; y++) {
+        if(board[x][y]) {
+          sf::Sprite * sprite = board[x][y]->getSprite();
+          sprite->move(sf::Vector2f(80*x, 80*y));
+          window.draw(*sprite);
+        }
+      }
+    }
 
     // end the current frame
     window.display();
