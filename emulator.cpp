@@ -3,7 +3,28 @@
 
 int main()
 {
-  sf::RenderWindow window(sf::VideoMode(800, 600), "My window");
+  sf::RenderWindow window(sf::VideoMode(1000, 800), "My window");
+
+  sf::Texture texture;
+  texture.loadFromFile("assets/pieces.png");
+
+  sf::Sprite white_rook_a(texture,sf::IntRect(80*0,80*0,80,80));
+  sf::Sprite white_rook_b(texture,sf::IntRect(80*0,80*0,80,80));
+  sf::Sprite white_bishop_a(texture,sf::IntRect(80*2,80*1,80,80));
+  sf::Sprite white_bishop_b(texture,sf::IntRect(80*2,80*1,80,80));
+  sf::Sprite white_knight_a(texture,sf::IntRect(80*0,80*1,80,80));
+  sf::Sprite white_knight_b(texture,sf::IntRect(80*0,80*1,80,80));
+  sf::Sprite white_king(texture,sf::IntRect(80*1,80*0,80,80));
+  sf::Sprite white_queen(texture,sf::IntRect(80*1,80*1,80,80));
+  
+  white_rook_a.move(sf::Vector2f(80*0, 80*7));
+  white_rook_b.move(sf::Vector2f(80*7, 80*7));
+  white_knight_a.move(sf::Vector2f(80*1, 80*7));
+  white_knight_b.move(sf::Vector2f(80*6, 80*7));
+  white_bishop_a.move(sf::Vector2f(80*2, 80*7));
+  white_bishop_b.move(sf::Vector2f(80*5, 80*7));
+  white_king.move(sf::Vector2f(80*3, 80*7));
+  white_queen.move(sf::Vector2f(80*4, 80*7));
 
   // run the program as long as the window is open
   while (window.isOpen()) {
@@ -18,6 +39,16 @@ int main()
     // clear the window with black color
     window.clear(sf::Color::Black);
 
+
+    window.draw(white_rook_a);
+    window.draw(white_rook_b);
+    window.draw(white_knight_a);
+    window.draw(white_knight_b);
+    window.draw(white_bishop_a);
+    window.draw(white_bishop_b);
+    window.draw(white_king);
+    window.draw(white_queen);
+    
     // draw everything here...
     // window.draw(...);
 
