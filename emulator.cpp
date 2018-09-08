@@ -79,7 +79,44 @@ public:
   };
 };
 
-void setup_init_board(GamePiece* board[8][8]) {
+class ChessGameState {
+private:
+  GamePiece* board[8][8];
+  bool about_to_move;
+  int pieceAboutToMoveX;
+  int pieceAboutToMoveY;
+
+public:
+  ChessGameState() {
+    setup_init_board(board);
+    about_to_move = false;
+  }
+  void selected_square(int x, int y);
+  void setup_init_board(GamePiece* board[8][8]);
+  void draw_to_window(sf::RenderWindow * window);
+
+};
+
+void ChessGameState::selected_square(int x, int y) {
+  if(x<0 || x >=8 || y < 0 || y >= 8) {
+      return;
+  }
+  if(!about_to_move) {
+    pieceAboutToMoveX = x;
+    pieceAboutToMoveY = y;
+    about_to_move = true;
+  } else if(about_to_move) {
+    GamePiece* piece = board[pieceAboutToMoveX][pieceAboutToMoveY];
+    board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
+    pieceAboutToMoveX = 0;
+    pieceAboutToMoveY = 0;
+    about_to_move = false;
+    board[x][y] = piece;
+  }
+
+}
+
+void ChessGameState::setup_init_board(GamePiece* board[8][8]) {
   for(int x = 0; x<8; x++){
     for(int y=0; y<8; y++){
       board[x][y]=0;
@@ -107,34 +144,39 @@ void setup_init_board(GamePiece* board[8][8]) {
   }
 }
 
-void draw_to_window(sf::RenderWindow * window, GamePiece* board[8][8]) {
 
-    // clear the window with black color
-    window->clear(sf::Color::Black);
-    
-    //draw game board grid
-    for(int x=0; x<8; x++) {
-      for(int y=0; y<8; y++) {
-        if((x%2==0 && (y)%2==0) || (x%2==1 && (y)%2==1)) {
-          sf::RectangleShape rect(sf::Vector2f(80,80));
-          rect.move(sf::Vector2f(80*(x), 80*(y)));
-          window->draw(rect);
-        }
+void ChessGameState::draw_to_window(sf::RenderWindow * window) {
+
+  // clear the window with black color
+  window->clear(sf::Color::Black);
+
+  //draw game board grid
+  for(int x=0; x<8; x++) {
+    for(int y=0; y<8; y++) {
+      if((x%2==0 && (y)%2==0) || (x%2==1 && (y)%2==1)) {
+        sf::RectangleShape rect(sf::Vector2f(80,80));
+        rect.move(sf::Vector2f(80*(x), 80*(y)));
+        window->draw(rect);
       }
     }
+  }
 
-    //draw pieces
-    for(int x=0; x<8; x++) {
-      for(int y=0; y<8; y++) {
-        if(board[x][y]) {
-          sf::Sprite * sprite = board[x][y]->getSprite();
-          sprite->move(sf::Vector2f(80*x, 80*y));
-          window->draw(*sprite);
-        }
+  //draw pieces
+  for(int x=0; x<8; x++) {
+    for(int y=0; y<8; y++) {
+      if(board[x][y]) {
+        sf::Sprite * sprite = board[x][y]->getSprite();
+        sprite->move(sf::Vector2f(80*x, 80*y));
+        window->draw(*sprite);
       }
     }
+  }
 
 }
+
+class ProgramState {
+
+};
 
 
 int main()
@@ -143,8 +185,7 @@ int main()
 
   texture.loadFromFile("assets/pieces.png");
 
-  GamePiece* board[8][8];
-  setup_init_board(board);
+  ChessGameState gameState;
 
   // run the program as long as the window is open
   while (window.isOpen()) {
@@ -152,11 +193,19 @@ int main()
     sf::Event event;
     while (window.pollEvent(event)) {
       // "close requested" event: we close the window
-      if (event.type == sf::Event::Closed)
+      if (event.type == sf::Event::Closed) {
         window.close();
+      }
+      else if (event.type == sf::Event::MouseButtonPressed) {
+        std::cout << "mouse x: " << event.mouseButton.x / 80 << std::endl;
+        std::cout << "mouse y: " << event.mouseButton.y / 80 << std::endl;
+        gameState.selected_square(event.mouseButton.x / 80, event.mouseButton.y / 80);
+        // Figure out cell
+
+      }
     }
 
-    draw_to_window(&window, board);
+    gameState.draw_to_window(&window);
 
     // end the current frame
     window.display();
