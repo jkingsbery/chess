@@ -121,14 +121,18 @@ void ChessGameState::selected_square(int x, int y) {
       game_messages.setString("Select the right color!");
     }
   } else if(piece_selected) {
-    GamePiece* piece = board[pieceAboutToMoveX][pieceAboutToMoveY];
-    board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
-    pieceAboutToMoveX = 0;
-    pieceAboutToMoveY = 0;
-    piece_selected = false;
-    board[x][y] = piece;
-    to_move = (to_move == WHITE ? BLACK : WHITE);
-    game_messages.setString("");
+    if(pieceAboutToMoveX == x && pieceAboutToMoveY == y) {
+      piece_selected = false;
+    } else {
+      GamePiece* piece = board[pieceAboutToMoveX][pieceAboutToMoveY];
+      board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
+      pieceAboutToMoveX = 0;
+      pieceAboutToMoveY = 0;
+      piece_selected = false;
+      board[x][y] = piece;
+      to_move = (to_move == WHITE ? BLACK : WHITE);
+      game_messages.setString("");
+    }
   }
 
 }
