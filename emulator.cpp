@@ -4,7 +4,11 @@
 #include <SFML/System/Time.hpp>
 #include <iostream>
 using namespace std;
+
 sf::Texture texture;
+sf::Font font;
+sf::Text text_to_play;
+sf::Text game_messages;
 
 const int FPS = 16;
 const sf::Time SLEEP_TIME = sf::milliseconds(1000/FPS);
@@ -14,6 +18,9 @@ class GamePiece {
 public:
   virtual sf::Sprite * getSprite() {
     return new sf::Sprite(texture,sf::IntRect(80*getXLoc(),80*getYLoc(),80,80));
+  }
+  Player getColor() {
+    return color;
   }
 
 protected:
@@ -82,14 +89,15 @@ public:
 class ChessGameState {
 private:
   GamePiece* board[8][8];
-  bool about_to_move;
+  bool piece_selected;
   int pieceAboutToMoveX;
   int pieceAboutToMoveY;
-
+  Player to_move;
 public:
   ChessGameState() {
     setup_init_board(board);
-    about_to_move = false;
+    piece_selected = false;
+    to_move = WHITE;
   }
   void selected_square(int x, int y);
   void setup_init_board(GamePiece* board[8][8]);
@@ -101,17 +109,26 @@ void ChessGameState::selected_square(int x, int y) {
   if(x<0 || x >=8 || y < 0 || y >= 8) {
       return;
   }
-  if(!about_to_move) {
-    pieceAboutToMoveX = x;
-    pieceAboutToMoveY = y;
-    about_to_move = true;
-  } else if(about_to_move) {
+  if(!piece_selected) {
+    //check it's a piece for the right player
+    if(board[x][y]->getColor() == to_move) {
+    
+      pieceAboutToMoveX = x;
+      pieceAboutToMoveY = y;
+      piece_selected = true;
+      game_messages.setString("");
+    } else {
+      game_messages.setString("Select the right color!");
+    }
+  } else if(piece_selected) {
     GamePiece* piece = board[pieceAboutToMoveX][pieceAboutToMoveY];
     board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
     pieceAboutToMoveX = 0;
     pieceAboutToMoveY = 0;
-    about_to_move = false;
+    piece_selected = false;
     board[x][y] = piece;
+    to_move = (to_move == WHITE ? BLACK : WHITE);
+    game_messages.setString("");
   }
 
 }
@@ -171,20 +188,36 @@ void ChessGameState::draw_to_window(sf::RenderWindow * window) {
       }
     }
   }
+  if(to_move == WHITE) {
+    text_to_play.setString("White to Play");
+  } else {
+    text_to_play.setString("Black to Play");
+  }
 
+  window->draw(text_to_play);
+  window->draw(game_messages);
 }
 
 class ProgramState {
 
 };
 
-
 int main()
 {
-  sf::RenderWindow window(sf::VideoMode(1000, 800), "My window");
+  sf::RenderWindow window(sf::VideoMode(1200, 800), "My window");
 
   texture.loadFromFile("assets/pieces.png");
 
+  if (!font.loadFromFile("assets/arial.ttf"))
+    return -1;
+
+  text_to_play.setFont(font);
+  text_to_play.setCharacterSize(36);
+  text_to_play.move(sf::Vector2f(80*9, 80*1));
+  game_messages.setFont(font);
+  game_messages.setCharacterSize(36);
+  game_messages.move(sf::Vector2f(80*9, 80*2));
+  game_messages.setString("");
   ChessGameState gameState;
 
   // run the program as long as the window is open
@@ -197,16 +230,16 @@ int main()
         window.close();
       }
       else if (event.type == sf::Event::MouseButtonPressed) {
+        // Figure out cell selected
         std::cout << "mouse x: " << event.mouseButton.x / 80 << std::endl;
         std::cout << "mouse y: " << event.mouseButton.y / 80 << std::endl;
         gameState.selected_square(event.mouseButton.x / 80, event.mouseButton.y / 80);
-        // Figure out cell
+
 
       }
     }
 
     gameState.draw_to_window(&window);
-
     // end the current frame
     window.display();
     sf::sleep(SLEEP_TIME);
