@@ -3,6 +3,9 @@
 #include <SFML/System.hpp>
 #include <SFML/System/Time.hpp>
 #include <iostream>
+#include <vector>
+#include <utility>
+
 using namespace std;
 
 sf::Texture texture;
@@ -14,6 +17,8 @@ const int FPS = 16;
 const sf::Time SLEEP_TIME = sf::milliseconds(1000/FPS);
 enum Player{WHITE, BLACK};
 
+class ChessGameState;
+
 class GamePiece {
 public:
   virtual sf::Sprite * getSprite() {
@@ -22,13 +27,22 @@ public:
   Player getColor() {
     return color;
   }
-
+  //TODO implement logic for pieces other than pawns
+  vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  void markAsMoved() {
+    hasMovedAtLeastOnce = true;
+  }
+  bool hasMovedBefore() {
+    return hasMovedAtLeastOnce;
+  }
 protected:
   Player color;
   int xloc;
   int yloc;
+  bool hasMovedAtLeastOnce;
   GamePiece(Player color) {
     this->color=color;
+    hasMovedAtLeastOnce = false;
   }
   int getXLoc() {
     return color == WHITE ? xloc : xloc + 3;
@@ -60,6 +74,7 @@ public:
     xloc = 2;
     yloc = 0;
   };
+
 };
 
 class Rook : public GamePiece {
@@ -102,8 +117,12 @@ public:
   void selected_square(int x, int y);
   void setup_init_board(GamePiece* board[8][8]);
   void draw_to_window(sf::RenderWindow * window);
-
+  GamePiece* getPieceAt(int x, int y);
 };
+
+GamePiece* ChessGameState::getPieceAt(int x, int y) {
+  return board[x][y];
+}
 
 void ChessGameState::selected_square(int x, int y) {
   if(x<0 || x >=8 || y < 0 || y >= 8) {
@@ -111,8 +130,11 @@ void ChessGameState::selected_square(int x, int y) {
   }
   if(!piece_selected) {
     //check it's a piece for the right player
-    if(board[x][y]->getColor() == to_move) {
-    
+    if(board[x][y] == 0) {
+      //ignore stray clicks
+      return;
+    }
+    if(board[x][y]->getColor() == to_move) {   
       pieceAboutToMoveX = x;
       pieceAboutToMoveY = y;
       piece_selected = true;
@@ -123,15 +145,25 @@ void ChessGameState::selected_square(int x, int y) {
   } else if(piece_selected) {
     if(pieceAboutToMoveX == x && pieceAboutToMoveY == y) {
       piece_selected = false;
-    } else {
+    } else {      
       GamePiece* piece = board[pieceAboutToMoveX][pieceAboutToMoveY];
-      board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
-      pieceAboutToMoveX = 0;
-      pieceAboutToMoveY = 0;
-      piece_selected = false;
-      board[x][y] = piece;
-      to_move = (to_move == WHITE ? BLACK : WHITE);
-      game_messages.setString("");
+      //check if legal move
+      auto legal_moves = piece->getLegalMoves(this,pieceAboutToMoveX, pieceAboutToMoveY);
+      auto p = std::make_pair(x, y);
+      if(find(legal_moves->begin(), legal_moves->end(), p) == legal_moves->end() ) {
+        game_messages.setString("That's not a legal move!");
+      } else {
+        //execute move
+        board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
+        pieceAboutToMoveX = 0;
+        pieceAboutToMoveY = 0;
+        piece_selected = false;
+        board[x][y] = piece;
+        piece->markAsMoved();
+        to_move = (to_move == WHITE ? BLACK : WHITE);
+        game_messages.setString("");
+      }
+      delete legal_moves;
     }
   }
 
@@ -163,6 +195,29 @@ void ChessGameState::setup_init_board(GamePiece* board[8][8]) {
     board[i][6] = new Pawn(WHITE);
     board[i][1] = new Pawn(BLACK);
   }
+}
+
+
+vector<pair<int, int> > * GamePiece::getLegalMoves(ChessGameState * game, int x, int y) {
+  cout << "Calculating legal moves for pos " << x << ", " << y << "...\n";
+  vector<pair<int, int> > * result = new vector<pair<int, int> >();
+  int ydelta = getColor() == WHITE ? -1 : 1;
+  auto onTheRight = game->getPieceAt(x + 1, y + ydelta);
+  auto onTheLeft = game->getPieceAt(x - 1, y + ydelta);
+  if(!hasMovedBefore() && game->getPieceAt(x, y + ydelta) == 0 &&
+     game->getPieceAt(x, y + 2 * ydelta) == 0) {
+    result->push_back(make_pair(x, y + 2* ydelta));
+  }
+  if(game->getPieceAt(x, y + ydelta) == 0) {
+    result->push_back(make_pair(x, y + ydelta));
+  }
+  if(onTheRight != 0 && onTheRight->getColor() != getColor()) {
+    result->push_back(make_pair(x + 1, y + ydelta));      
+  }
+  if(onTheLeft != 0 && onTheLeft->getColor() != getColor()) {
+    result->push_back(make_pair(x - 1, y + ydelta));
+  }
+  return result;
 }
 
 
