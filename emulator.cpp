@@ -28,7 +28,7 @@ public:
     return color;
   }
   //TODO implement logic for pieces other than pawns
-  vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y) = 0;
   void markAsMoved() {
     hasMovedAtLeastOnce = true;
   }
@@ -58,6 +58,7 @@ public:
     xloc = 1;
     yloc = 1;
   };
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
 };
 
 class Queen : public GamePiece {
@@ -66,6 +67,7 @@ public:
     xloc = 1;
     yloc = 0;
   };
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
 };
 
 class Pawn : public GamePiece {
@@ -74,7 +76,7 @@ public:
     xloc = 2;
     yloc = 0;
   };
-
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
 };
 
 class Rook : public GamePiece {
@@ -83,6 +85,7 @@ public:
     xloc = 0;
     yloc = 0;
   };
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
 };
 
 class Bishop : public GamePiece {
@@ -91,6 +94,7 @@ public:
     xloc = 2;
     yloc = 1;
   };
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
 };
 
 class Knight  : public GamePiece {
@@ -99,6 +103,7 @@ public:
     xloc = 0;
     yloc = 1;
   };
+  virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
 };
 
 class ChessGameState {
@@ -197,10 +202,122 @@ void ChessGameState::setup_init_board(GamePiece* board[8][8]) {
   }
 }
 
+vector<pair<int, int> > * getLegalMovesInRange(ChessGameState * game, int x, int y, vector<pair<int, int> > * directions) {
+  cout << "getting legal moves for piece at " << x << ", " << y << "\n";
+  auto result = new vector<pair<int, int> >();
+  for (auto dir = directions->begin(); dir != directions->end(); ++dir) {
+    int steps = 1;
+    auto loc = make_pair(x + dir->first * steps, y + dir->second * steps);
+    //get loc from directions
+    while(0 <= loc.first && loc.first < 8 &&
+       0 <= loc.second && loc.second < 8 &&
+       (game->getPieceAt(loc.first, loc.second) == 0 ||
+        game->getPieceAt(loc.first, loc.second)->getColor() != game->getPieceAt(x, y)->getColor())) {
 
-vector<pair<int, int> > * GamePiece::getLegalMoves(ChessGameState * game, int x, int y) {
-  cout << "Calculating legal moves for pos " << x << ", " << y << "...\n";
-  vector<pair<int, int> > * result = new vector<pair<int, int> >();
+      result->push_back(make_pair(loc.first, loc.second));
+
+      auto new_spot = game->getPieceAt(loc.first, loc.second);
+      auto old_spot = game->getPieceAt(x, y);
+      if(new_spot && old_spot && new_spot->getColor() != old_spot->getColor()) {
+        //This move would capture a piece, have to stop here.
+        break;
+      }
+
+      //Increment so the loop checks the next location
+      steps++;
+      loc = make_pair(x + dir->first * steps, y + dir->second * steps);
+
+    }
+  }
+  return result;
+
+}
+
+vector<pair<int, int> > * Queen::getLegalMoves(ChessGameState * game, int x, int y) {
+  auto possible = new vector<pair<int, int> >();
+  possible->push_back(make_pair(1, 1));
+  possible->push_back(make_pair( - 1, -1));
+  possible->push_back(make_pair( - 1, 1));
+  possible->push_back(make_pair( 1, -1));
+  possible->push_back(make_pair( 0,  1));
+  possible->push_back(make_pair( 0, - 1));
+  possible->push_back(make_pair( 1,  0));
+  possible->push_back(make_pair(- 1,  0));
+  auto result = getLegalMovesInRange(game, x, y, possible);
+  delete possible;
+  return result;
+}
+
+
+vector<pair<int, int> > * Rook::getLegalMoves(ChessGameState * game, int x, int y) {
+  auto possible = new vector<pair<int, int> >();
+  possible->push_back(make_pair( 0,  1));
+  possible->push_back(make_pair( 0, - 1));
+  possible->push_back(make_pair( 1,  0));
+  possible->push_back(make_pair(- 1,  0));
+  auto result = getLegalMovesInRange(game, x, y, possible);
+  delete possible;
+  return result;
+}
+
+
+vector<pair<int, int> > * Bishop::getLegalMoves(ChessGameState * game, int x, int y) {
+  auto possible = new vector<pair<int, int> >();
+  possible->push_back(make_pair(1, 1));
+  possible->push_back(make_pair( - 1, -1));
+  possible->push_back(make_pair( - 1, 1));
+  possible->push_back(make_pair( 1, -1));
+  auto result = getLegalMovesInRange(game, x, y, possible);
+  delete possible;
+  return result;
+}
+
+vector<pair<int, int> > * getLegalMovesFromAbsolute(ChessGameState * game, int x, int y,  vector<pair<int, int> > * directions) {
+ auto result = new vector<pair<int, int> >();
+  for (auto loc = directions->begin(); loc != directions->end(); ++loc) {
+    if(0 <= loc->first && loc->first < 8 &&
+       0 <= loc->second && loc->second < 8 &&
+       (game->getPieceAt(loc->first, loc->second) == 0 ||
+        game->getPieceAt(loc->first, loc->second)->getColor() != game->getPieceAt(x, y)->getColor())) {
+      result->push_back(make_pair(loc->first, loc->second));
+    }
+  }
+  return result;
+}
+
+vector<pair<int, int> > * King::getLegalMoves(ChessGameState * game, int x, int y) {
+  auto possible = new vector<pair<int, int> >();
+  possible->push_back(make_pair(x + 1, y + 1));
+  possible->push_back(make_pair(x - 1, y - 1));
+  possible->push_back(make_pair(x - 1, y + 1));
+  possible->push_back(make_pair(x + 1, y - 1));
+  possible->push_back(make_pair(x + 0, y + 1));
+  possible->push_back(make_pair(x + 0, y - 1));
+  possible->push_back(make_pair(x + 1, y + 0));
+  possible->push_back(make_pair(x - 1, y + 0));
+  auto result = getLegalMovesFromAbsolute(game, x, y, possible);
+  delete possible;
+  return result;
+}
+
+
+vector<pair<int, int> > * Knight::getLegalMoves(ChessGameState * game, int x, int y) {
+  auto possible = new vector<pair<int, int> >();
+  possible->push_back(make_pair(x + 2, y + 1));
+  possible->push_back(make_pair(x - 2, y - 1));
+  possible->push_back(make_pair(x + 2, y - 1));
+  possible->push_back(make_pair(x - 2, y + 1));
+  possible->push_back(make_pair(x + 1, y + 2));
+  possible->push_back(make_pair(x - 1, y - 2));
+  possible->push_back(make_pair(x + 1, y - 2));
+  possible->push_back(make_pair(x - 1, y + 2));
+  auto result = getLegalMovesFromAbsolute(game, x, y, possible);
+  delete possible;
+  return result;
+}
+
+vector<pair<int, int> > * Pawn::getLegalMoves(ChessGameState * game, int x, int y) {
+  auto result = new vector<pair<int, int> >();
   int ydelta = getColor() == WHITE ? -1 : 1;
   auto onTheRight = game->getPieceAt(x + 1, y + ydelta);
   auto onTheLeft = game->getPieceAt(x - 1, y + ydelta);
@@ -290,8 +407,7 @@ int main()
       }
       else if (event.type == sf::Event::MouseButtonPressed) {
         // Figure out cell selected
-        std::cout << "mouse x: " << event.mouseButton.x / 80 << std::endl;
-        std::cout << "mouse y: " << event.mouseButton.y / 80 << std::endl;
+        cout << "selected piece at " << event.mouseButton.x / 80 << ", " << event.mouseButton.y / 80 << std::endl;
         gameState.selected_square(event.mouseButton.x / 80, event.mouseButton.y / 80);
 
 
