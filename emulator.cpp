@@ -29,11 +29,18 @@ public:
   }
   //TODO implement logic for pieces other than pawns
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y) = 0;
+  virtual GamePiece * copy() = 0;
   void markAsMoved() {
     hasMovedAtLeastOnce = true;
   }
   bool hasMovedBefore() {
     return hasMovedAtLeastOnce;
+  }
+  virtual ~GamePiece() {
+    //doesn't allocate any memory, nothing to do
+  }
+  virtual bool isKing() {
+    return false;
   }
 protected:
   Player color;
@@ -43,6 +50,10 @@ protected:
   GamePiece(Player color) {
     this->color=color;
     hasMovedAtLeastOnce = false;
+  }
+  GamePiece(Player color, bool hasMoved) {
+    this->color = color;
+    hasMovedAtLeastOnce = hasMoved;
   }
   int getXLoc() {
     return color == WHITE ? xloc : xloc + 3;
@@ -59,6 +70,12 @@ public:
     yloc = 1;
   };
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual GamePiece * copy(){
+    return new King(color);
+  }
+  virtual bool isKing() {
+    return true;
+  }
 };
 
 class Queen : public GamePiece {
@@ -68,6 +85,9 @@ public:
     yloc = 0;
   };
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual GamePiece * copy(){
+    return new Queen(color);
+  }
 };
 
 class Pawn : public GamePiece {
@@ -77,6 +97,9 @@ public:
     yloc = 0;
   };
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual GamePiece * copy(){
+    return new Pawn(color);
+  }
 };
 
 class Rook : public GamePiece {
@@ -86,6 +109,9 @@ public:
     yloc = 0;
   };
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual GamePiece * copy(){
+    return new Rook(color);
+  }
 };
 
 class Bishop : public GamePiece {
@@ -95,6 +121,9 @@ public:
     yloc = 1;
   };
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual GamePiece * copy(){
+    return new Bishop(color);
+  }
 };
 
 class Knight  : public GamePiece {
@@ -104,6 +133,9 @@ public:
     yloc = 1;
   };
   virtual vector<pair<int, int> > * getLegalMoves(ChessGameState * game, int x, int y);
+  virtual GamePiece * copy(){
+    return new Knight(color);
+  }
 };
 
 class ChessGameState {
@@ -119,14 +151,89 @@ public:
     piece_selected = false;
     to_move = WHITE;
   }
+
+  ChessGameState(ChessGameState * state) {
+    for(int x = 0; x<8; x++) {
+      for(int y = 0; y<8; y++) {
+        if(state->getPieceAt(x,y)) {
+          board[x][y] = state->getPieceAt(x,y)->copy();
+        } else {
+          board[x][y] = 0;
+        }
+      }
+    }
+    piece_selected = false;
+    to_move = state->getPlayer();
+  }
+  ~ChessGameState() {
+    for(int x = 0; x<8; x++) {
+      for(int y = 0; y<8; y++) {
+        if(board[x][y]) {
+          delete board[x][y];
+        }
+      }
+    }
+  }
+
   void selected_square(int x, int y);
   void setup_init_board(GamePiece* board[8][8]);
   void draw_to_window(sf::RenderWindow * window);
   GamePiece* getPieceAt(int x, int y);
+  void executeMove(int init_x, int init_y, int dest_x, int dest_y);
+  Player getPlayer() {
+    return to_move;
+  }
+  bool verifyCheck(int x, int y);
 };
 
 GamePiece* ChessGameState::getPieceAt(int x, int y) {
   return board[x][y];
+}
+
+void ChessGameState::executeMove(int init_x, int init_y, int dest_x, int dest_y) {
+  GamePiece* piece = board[init_x][init_y];
+  if(!piece) {
+    cout << "No piece found at " << init_x << ", " << init_y << "\n";
+  }
+  board[init_x][init_y] = 0;
+  piece_selected = false;
+  board[dest_x][dest_y] = piece;
+  piece->markAsMoved();
+  to_move = (to_move == WHITE ? BLACK : WHITE);
+}
+
+bool ChessGameState::verifyCheck(int x, int y) {
+  ChessGameState * copy_for_check = new ChessGameState(this);
+  copy_for_check->executeMove(pieceAboutToMoveX, pieceAboutToMoveY, x, y);
+  // verify that player's own king is not in check after the move
+  // 1. Find the king's position
+  // Loop over the set of pieces
+  // for each piece on the board, if a set of legal moves includes the king, the move is illegal
+  pair<int, int> king_loc_temp;
+  bool inCheck = false;
+  for(int x = 0; x < 8; x++) {
+    for(int y = 0; y < 8; y++) {
+      GamePiece * piece = copy_for_check->getPieceAt(x,y);
+      if(piece && piece->isKing() && piece->getColor() == to_move) {
+        king_loc_temp.first = x;
+        king_loc_temp.second = y;
+      }
+    }
+  }
+  auto king_loc = make_pair(king_loc_temp.first, king_loc_temp.second);
+  for(int x = 0; x < 8; x++) {
+    for(int y = 0; y < 8; y++) {
+      GamePiece * piece = copy_for_check->getPieceAt(x,y);
+      if(piece && piece->getColor() != to_move) {
+        auto moves = piece->getLegalMoves(copy_for_check, x, y);
+        if(moves->size() > 0) {
+          inCheck |= find(moves->begin(), moves->end(), king_loc) != moves->end();
+        }
+      }
+    }
+  }
+  delete copy_for_check;
+  return inCheck;
 }
 
 void ChessGameState::selected_square(int x, int y) {
@@ -134,38 +241,37 @@ void ChessGameState::selected_square(int x, int y) {
       return;
   }
   if(!piece_selected) {
-    //check it's a piece for the right player
+
     if(board[x][y] == 0) {
       //ignore stray clicks
       return;
     }
+    //check it's a piece for the right player
     if(board[x][y]->getColor() == to_move) {   
       pieceAboutToMoveX = x;
       pieceAboutToMoveY = y;
       piece_selected = true;
-      game_messages.setString("");
+      game_messages.setString("Where do you want\nto move to?");
     } else {
       game_messages.setString("Select the right color!");
     }
   } else if(piece_selected) {
     if(pieceAboutToMoveX == x && pieceAboutToMoveY == y) {
       piece_selected = false;
+      game_messages.setString("");
     } else {      
       GamePiece* piece = board[pieceAboutToMoveX][pieceAboutToMoveY];
       //check if legal move
       auto legal_moves = piece->getLegalMoves(this,pieceAboutToMoveX, pieceAboutToMoveY);
       auto p = std::make_pair(x, y);
-      if(find(legal_moves->begin(), legal_moves->end(), p) == legal_moves->end() ) {
+      bool isLegalMove = find(legal_moves->begin(), legal_moves->end(), p) == legal_moves->end();
+      bool inCheck = verifyCheck(x, y);
+      if(isLegalMove ) {
         game_messages.setString("That's not a legal move!");
+      } else if(inCheck) {
+        game_messages.setString("That move would put the\nking in check!");
       } else {
-        //execute move
-        board[pieceAboutToMoveX][pieceAboutToMoveY] = 0;
-        pieceAboutToMoveX = 0;
-        pieceAboutToMoveY = 0;
-        piece_selected = false;
-        board[x][y] = piece;
-        piece->markAsMoved();
-        to_move = (to_move == WHITE ? BLACK : WHITE);
+        executeMove(pieceAboutToMoveX, pieceAboutToMoveY, x, y);
         game_messages.setString("");
       }
       delete legal_moves;
@@ -203,7 +309,6 @@ void ChessGameState::setup_init_board(GamePiece* board[8][8]) {
 }
 
 vector<pair<int, int> > * getLegalMovesInRange(ChessGameState * game, int x, int y, vector<pair<int, int> > * directions) {
-  cout << "getting legal moves for piece at " << x << ", " << y << "\n";
   auto result = new vector<pair<int, int> >();
   for (auto dir = directions->begin(); dir != directions->end(); ++dir) {
     int steps = 1;
@@ -319,8 +424,6 @@ vector<pair<int, int> > * Knight::getLegalMoves(ChessGameState * game, int x, in
 vector<pair<int, int> > * Pawn::getLegalMoves(ChessGameState * game, int x, int y) {
   auto result = new vector<pair<int, int> >();
   int ydelta = getColor() == WHITE ? -1 : 1;
-  auto onTheRight = game->getPieceAt(x + 1, y + ydelta);
-  auto onTheLeft = game->getPieceAt(x - 1, y + ydelta);
   if(!hasMovedBefore() && game->getPieceAt(x, y + ydelta) == 0 &&
      game->getPieceAt(x, y + 2 * ydelta) == 0) {
     result->push_back(make_pair(x, y + 2* ydelta));
@@ -328,11 +431,17 @@ vector<pair<int, int> > * Pawn::getLegalMoves(ChessGameState * game, int x, int 
   if(game->getPieceAt(x, y + ydelta) == 0) {
     result->push_back(make_pair(x, y + ydelta));
   }
-  if(onTheRight != 0 && onTheRight->getColor() != getColor()) {
-    result->push_back(make_pair(x + 1, y + ydelta));      
+  if(x+1 < 8) {
+    auto onTheRight = game->getPieceAt(x + 1, y + ydelta);
+    if(onTheRight != 0 && onTheRight->getColor() != getColor()) {
+      result->push_back(make_pair(x + 1, y + ydelta));
+    }
   }
-  if(onTheLeft != 0 && onTheLeft->getColor() != getColor()) {
-    result->push_back(make_pair(x - 1, y + ydelta));
+  if(x-1 > 0) {
+    auto onTheLeft = game->getPieceAt(x - 1, y + ydelta);
+    if(onTheLeft != 0 && onTheLeft->getColor() != getColor()) {
+      result->push_back(make_pair(x - 1, y + ydelta));
+    }
   }
   return result;
 }
@@ -409,8 +518,6 @@ int main()
         // Figure out cell selected
         cout << "selected piece at " << event.mouseButton.x / 80 << ", " << event.mouseButton.y / 80 << std::endl;
         gameState.selected_square(event.mouseButton.x / 80, event.mouseButton.y / 80);
-
-
       }
     }
 
